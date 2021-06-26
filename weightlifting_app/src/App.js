@@ -1,4 +1,3 @@
-
 import React from "react";
 import './App.css';
 import {
@@ -6,20 +5,14 @@ import {
   Switch,
   Route,
 } from "react-router-dom"
-import RecordSnatch from './pages/record-snatch'
-import Selection from './pages/selection'
-
+import Record from './pages/record'
 
 const App = () => {
   return (
-    <Router>
+    <Router> {/**will add more routes later */}
       <Switch>
-        <Route path='/snatch/:drill'>
-          <RecordSnatch/>
-        </Route>
-        {/**no route for cleans yet */}
         <Route path='/'>
-          <Selection/>
+          <Record/>
         </Route>
       </Switch>
     </Router>
@@ -27,3 +20,5 @@ const App = () => {
 }
 
 export default App;
+
+/**write functions in pages/record.js to give visual cues for snatch starting + extension */
