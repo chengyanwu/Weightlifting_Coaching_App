@@ -1,96 +1,122 @@
 
 import React, {useRef} from "react";
 import './App.css';
-import * as tf from "@tensorflow/tfjs";
-import * as posenet from "@tensorflow-models/posenet";
-import Webcam from "react-webcam";
-import {drawKeypoints, drawSkeleton} from "./utilities";
+import {
+  BrowserRouter as Router,
+  Switch,
+  Route,
+  Link
+} from "react-router-dom"
+import {
+  Card, 
+  CardMedia, 
+  CardContent, 
+  CardActions, 
+  Typography, 
+  Collapse,
+  Button,
+  ButtonGroup,
+  IconButton
+} from '@material-ui/core'
+import ExpandMoreIcon from '@material-ui/icons/ExpandMore'
+import RecordSnatch from './pages/record-snatch'
 
 
+const App = () => {
+  const [expanded, setExpanded] = React.useState(false)
 
-function App() {
-  const webcamRef = useRef(null);
-  const canvasRef = useRef(null);
-
-  // Load Posenet
-  const runPosenet = async () =>{
-    const net = await posenet.load({
-      inputResolution:{width:640, height:480},
-      scale:0.8,
-    })
-    // set interval
-    setInterval(()=>{
-      detect(net)
-    }, 100);
-  };
-
-  const detect = async (net) =>{
-    if(typeof webcamRef.current !== "undefined" && webcamRef.current !==null && webcamRef.current.video.readyState===4 ){
-      // Get Video Property
-      const video = webcamRef.current.video;
-      const videoWidth = webcamRef.current.video.videoWidth;
-      const videoHeight = webcamRef.current.video.VideoHeight;
-      
-      // Set video width
-      webcamRef.current.video.width = videoWidth;
-      webcamRef.current.video.height = videoHeight;
-
-      // Make detection
-      const pose = await net.estimateSinglePose(video);
-      console.log(pose);
-
-      drawCanvas(pose, video, videoWidth, videoHeight, canvasRef);
-
-    }
-  };
-
-  const drawCanvas = (pose, video, videoWidth, videoHeight, canvas) => {
-    const ctx = canvas.current.getContext("2d");
-    canvas.current.width = videoWidth;
-    canvas.current.height = videoHeight;
-
-    drawKeypoints(pose["keypoints"], 0.6, ctx);
-    drawSkeleton(pose["keypoints"], 0.7, ctx);
-  };
-
-  runPosenet();
+  const handleExpandClick = () => {
+    setExpanded(!expanded);
+  }
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <Webcam 
-          ref={webcamRef}
-          style={{
-            position: "absolute",
-            marginLeft: "auto",
-            marginRight: "auto",
-            left: 0,
-            right: 0,
-            textAlign: "center",
-            zindex:9,
-            width:640,
-            height:480
-          }}
-        />
+    <Router>
+      <Card> {/**will probably make these cards their own components later */}
+        <CardMedia image='' title='Snatch'/>
+        <CardContent>
+          <Typography variant='h2'>
+            Snatch
+          </Typography>
+          <IconButton
+            onClick={handleExpandClick}
+            aria-expanded={expanded}
+            aria-label="show more"
+          >
+            <ExpandMoreIcon/>
+          </IconButton>
+        </CardContent>
+        <Collapse in={expanded} unmountOnExit>
+          <CardActions>
+            <ButtonGroup
+              orientation='vertical'
+              variant='text'
+            >
+              <Button>
+                <Link to='/snatch/starting'>
+                  <Typography>
+                    Starting position
+                  </Typography>
+                </Link>
+              </Button>
+              <Button>
+                <Link to='snatch/extension'>
+                  <Typography>
+                    Extension
+                  </Typography>
+                </Link>
+              </Button>
+            </ButtonGroup>
+          </CardActions>
+        </Collapse>
+      </Card>
+      <Card>
+        <CardMedia image='' title='Clean'/>
+        <CardContent>
+          <Typography variant='h2'>
+            Clean
+          </Typography>
+          <IconButton
+            onClick={handleExpandClick}
+            aria-expanded={expanded}
+            aria-label="show more"
+          >
+            <ExpandMoreIcon/>
+          </IconButton>
+        </CardContent>
+        <Collapse in={expanded} unmountOnExit>
+          <CardActions>
+            <ButtonGroup
+              orientation='vertical'
+              variant='text'
+            >
+              <Button disabled>
+                <Link to='/clean/starting'>
+                  <Typography>
+                    Starting position
+                  </Typography>
+                </Link>
+              </Button>
+              <Button disabled>
+                <Link to='clean/extension'>
+                  <Typography>
+                    Extension
+                  </Typography>
+                </Link>
+              </Button>
+            </ButtonGroup>
+          </CardActions>
+        </Collapse>
+      </Card>
 
-        <canvas 
-          ref={canvasRef}
-          style={{
-            position: "absolute",
-            marginLeft: "auto",
-            marginRight: "auto",
-            left: 0,
-            right: 0,
-            textAlign: "center",
-            zindex:9,
-            width:640,
-            height:480,
-          }} 
-        />
-
-      </header>
-    </div>
-  );
+      {/*router stuff*/}
+      <Switch>
+        <Route path='/snatch/:drill'>
+          <RecordSnatch/>
+        </Route>
+        {/**no route for cleans yet */}
+      </Switch>
+    </Router>
+  )
 }
 
 export default App;
