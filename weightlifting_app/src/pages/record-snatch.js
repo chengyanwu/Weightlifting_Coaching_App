@@ -5,42 +5,44 @@ import {drawKeypoints, drawSkeleton} from "../utilities";
 import {useParams} from 'react-router-dom'
 
 const RecordSnatch = () => {
-  const {drill} = useParams()
+  const {drill} = useParams() //values are 'starting' or 'extension'
 
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // Load Posenet
-  const runPosenet = async () =>{
-    const net = await posenet.load({ 
-      //fast but inaccurate config
-      multiplier: 0.5,
+  //  Load posenet
+  const runPosenet = async () => {
+    const net = await posenet.load({
+      inputResolution: { width: 640, height: 480 },
       outputStride: 16,
-      inputResolution: 300
-    })
-    // set interval
-    setInterval(()=>{
-      detect(net)
+      multiplier: 0.5
+    });
+    //
+    setInterval(() => {
+      detect(net);
     }, 100);
   };
 
-  const detect = async (net) =>{
-    if(typeof webcamRef.current !== "undefined" && webcamRef.current !==null && webcamRef.current.video.readyState===4 ){
-      // Get Video Property
+  const detect = async (net) => {
+    if (
+      typeof webcamRef.current !== "undefined" &&
+      webcamRef.current !== null &&
+      webcamRef.current.video.readyState === 4
+    ) {
+      // Get Video Properties
       const video = webcamRef.current.video;
       const videoWidth = webcamRef.current.video.videoWidth;
-      const videoHeight = webcamRef.current.video.VideoHeight;
-      
+      const videoHeight = webcamRef.current.video.videoHeight;
+
       // Set video width
       webcamRef.current.video.width = videoWidth;
       webcamRef.current.video.height = videoHeight;
 
-      // Make detection
+      // Make Detections
       const pose = await net.estimateSinglePose(video);
       console.log(pose);
 
       drawCanvas(pose, video, videoWidth, videoHeight, canvasRef);
-
     }
   };
 
@@ -58,7 +60,7 @@ const RecordSnatch = () => {
   return (
     <div className="App">
       <header className="App-header">
-        <Webcam 
+        <Webcam
           ref={webcamRef}
           style={{
             position: "absolute",
@@ -67,13 +69,13 @@ const RecordSnatch = () => {
             left: 0,
             right: 0,
             textAlign: "center",
-            zindex:9,
-            width:640,
-            height:480
+            zindex: 9,
+            width: 640,
+            height: 480,
           }}
         />
 
-        <canvas 
+        <canvas
           ref={canvasRef}
           style={{
             position: "absolute",
@@ -82,12 +84,11 @@ const RecordSnatch = () => {
             left: 0,
             right: 0,
             textAlign: "center",
-            zindex:9,
-            width:640,
-            height:480,
-          }} 
+            zindex: 9,
+            width: 640,
+            height: 480,
+          }}
         />
-
       </header>
     </div>
   );
