@@ -4,7 +4,7 @@ import Webcam from "react-webcam";
 import {drawKeypoints, drawSkeleton} from "../utilities";
 import RecordButton from '../components/record-button'
 import LiftSelection from '../components/lift-selection'
-import styles from './record/module.sass'
+// import styles from './record/module.sass'
 
 const Record = () => { //use these states to create functions that will draw on the canvas for snatch (starting and extension)
   const [lift, setLift] = React.useState('snatch')
@@ -61,6 +61,7 @@ const Record = () => { //use these states to create functions that will draw on 
     <main>
       <Webcam
         ref={webcamRef}
+        audio={false}
         style={{
           position: "absolute",
           marginLeft: "auto",
