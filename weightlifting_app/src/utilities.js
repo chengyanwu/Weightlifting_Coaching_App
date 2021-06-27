@@ -243,3 +243,41 @@
  //         [heatmapY, heatmapX], [offsetPointY, offsetPointX], color, scale, ctx);
  //   }
  // }
+ 
+
+function shouldersOverBar(keypoints, minConfidence) {   
+  //true if shoulder is over bar / not all points detected / not determined
+  //false if shoulder is not over bar
+
+  // leftwrist=9, rightwrist=10, leftshoulder=5, rightshoulder=6
+  pointsOfInterest = [5, 6, 9, 10];
+  //check if all valid 
+  for(let i = 0; i < pointsOfInterest.length ; i++){
+    if (keypoints[i].score < minConfidence) {
+      return true;
+    }
+  }
+  //if all valid
+  const { lRy, lRx } = keypoint[9].position; //leftwrist
+  const { rRy, rRx } = keypoint[10].position;//rightwrist
+  const { lSy, lSx } = keypoint[5].position; //leftshoulder
+  const { rSy, rSx } = keypoint[6].position; //rightshoulder
+
+  //find which way they are facing first
+  //left right is determined in viewers perspective, not the object(person)'s perspective
+  if(rRy > lRy && rSy > lSy){ //facing right
+    if(rSx < rRx && lSx < lRx){ //if shoulder not over bar on both side
+      return false; 
+    }else{
+      return true; 
+    }
+  }else if(lRy > rRy && lSy > rSy){ //facing left
+    if(rSx > rRx && lSx > lRx){ //if shoulder not over bar on both side
+      return false; 
+    }else{
+      return true;
+    }
+  }else{//cannot detemine
+    return true;
+  }
+}
