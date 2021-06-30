@@ -38,8 +38,8 @@
    return isAndroid() || isiOS();
  }
  
- function setDatGuiPropertyCss(propertyText, liCssString, spanCssString = "") {
-   var spans = document.getElementsByClassName("property-name");
+ /*function setDatGuiPropertyCss(propertyText, liCssString, spanCssString = "") {
+   var spans = document.getElementsByClassName("property-name") as HTMLCollectionOf<HTMLElement>
    for (var i = 0; i < spans.length; i++) {
      var text = spans[i].textContent || spans[i].innerText;
      if (text == propertyText) {
@@ -57,7 +57,7 @@
      tryResNetButtonBackgroundCss,
      tryResNetButtonTextCss
    );
- }
+ }*/
  
  /**
   * Toggles between the loading UI and the main canvas UI.
@@ -76,7 +76,7 @@
    }
  }
  
- function toTuple({ y, x }) {
+ function toTuple({ y, x }): [any, any] {
    return [y, x];
  }
  
@@ -102,7 +102,7 @@
  /**
   * Draws a pose skeleton by looking up all adjacent keypoints/joints
   */
- export function drawSkeleton(keypoints, minConfidence, ctx, scale = 1) {
+ export function drawSkeleton(keypoints: Keypoint[], minConfidence, ctx, scale = 1) {
    const adjacentKeyPoints = posenet.getAdjacentKeyPoints(
      keypoints,
      minConfidence
@@ -245,39 +245,137 @@
  // }
  
 
-function shouldersOverBar(keypoints, minConfidence) {   
-  //true if shoulder is over bar / not all points detected / not determined
-  //false if shoulder is not over bar
+/**measures distance between two points on a 2d axis */
+export function distanceBetween(point1: Point, point2: Point) {
+  const xDiff = Math.abs(point1.x - point2.x)
+  const yDiff = Math.abs(point1.y - point2.y)
 
-  // leftwrist=9, rightwrist=10, leftshoulder=5, rightshoulder=6
-  pointsOfInterest = [5, 6, 9, 10];
-  //check if all valid 
-  for(let i = 0; i < pointsOfInterest.length ; i++){
-    if (keypoints[i].score < minConfidence) {
-      return true;
+  //a^2 + b^2 = c^2
+  const distance = Math.sqrt(Math.pow(xDiff, 2) + Math.pow(yDiff, 2))
+  
+  return distance
+}
+
+/**Takes posenet keypoints and filters them with a minConfidence input.
+ * For the passing points, separates them into left/right groups,
+ * as well as a group containing points available on both the left and right
+ * side, e.g., contains 'wrist' if both leftWrist and rightWrist passed.
+ */
+export function groupPoints(keypoints: Keypoint[], minConfidence: number): (Keypoint[] | GroupedPoints[])[] {
+  const leftPoints = keypoints.filter(point => 
+    point.part.includes('left') && point.score >= minConfidence
+  )
+  const rightPoints = keypoints.filter(point => 
+    point.part.includes('right') && point.score >= minConfidence
+  )//shared points (e.g. shoulders, elbows), i.e., both left and right sides pass minConfidence
+  let sharedPoints: GroupedPoints[] = []
+
+  for (let i = 0; i < leftPoints.length; i++) {
+    const joint = leftPoints[i].part.slice('left'.length, leftPoints[i].part.length) //e.g., 'leftWrist' becomes 'Wrist'
+    const match = rightPoints.find(point => point.part.includes(joint))//right counterpart for left joint
+
+    if (match) {
+      sharedPoints.push(
+        {
+          part: joint.toLowerCase(),
+          leftPoint: leftPoints[i],
+          rightPoint: match
+        }
+      )
     }
   }
-  //if all valid
-  const { lRy, lRx } = keypoint[9].position; //leftwrist
-  const { rRy, rRx } = keypoint[10].position;//rightwrist
-  const { lSy, lSx } = keypoint[5].position; //leftshoulder
-  const { rSy, rSx } = keypoint[6].position; //rightshoulder
 
-  //find which way they are facing first
-  //left right is determined in viewers perspective, not the object(person)'s perspective
-  if(rRy > lRy && rSy > lSy){ //facing right
-    if(rSx < rRx && lSx < lRx){ //if shoulder not over bar on both side
-      return false; 
-    }else{
-      return true; 
+  return [leftPoints, rightPoints, sharedPoints]
+}
+
+/**Takes keypoints and groups them into available limbs. E.g., if left
+ * wrist and left elbow are available, then the left forearm is available.
+ * Also returns 'shared limbs,' as in limbs that are available on both the
+ * left and right side, e.g., forearm if left and right forearms are available.
+ */
+export function groupLimbs(leftPoints: Keypoint[], rightPoints: Keypoint[]): (Limb[] | string[])[] {
+  const limbs = [
+    {
+      name: 'upperArm',
+      joints: ['elbow', 'shoulder']
+    }, 
+    {
+      name: 'forearm',
+      joints: ['elbow', 'wrist']
+    }, 
+    {
+      name: 'torso',
+      joints: ['hip', 'shoulder']
+    }, 
+    {
+      name: 'thigh',
+      joints: ['hip', 'knee']
+    }, 
+    {
+      name: 'calf',
+      joints: ['ankle', 'knee']
     }
-  }else if(lRy > rRy && lSy > rSy){ //facing left
-    if(rSx > rRx && lSx > lRx){ //if shoulder not over bar on both side
-      return false; 
-    }else{
-      return true;
-    }
-  }else{//cannot detemine
-    return true;
+  ]
+
+  let leftJoints: string[] = []
+  let rightJoints: string[] = []
+
+  for (const {part} of leftPoints) {
+    leftJoints.push(part)
   }
+  for (const {part} of rightPoints) {
+    rightJoints.push(part)
+  }
+
+  let availableLimbs: Limb[] = []
+  let sharedLimbs: Limb[] = []
+
+  function findLimbs(side: 'left' | 'right', jointsArray: string[]) {
+    limbs.map(limb => {
+      if (jointsArray.includes(limb.joints[0]) && jointsArray.includes(limb.joints[1])) {
+        let sidedLimb: Limb = limb
+        sidedLimb.side = side
+        if (availableLimbs.some(l => l.name === limb.name)) {
+          //if there is already a counterpart limb, e.g., left 
+          //and right wrists are available, push 'wrist' limb to sharedLimbs
+          sharedLimbs.push(limb)
+        }
+        availableLimbs.push(sidedLimb)
+      }
+    })
+  }
+
+  findLimbs('left', leftJoints) //populate availableLimbs with left and right limbs
+  findLimbs('right', rightJoints)
+  
+  return [availableLimbs, sharedLimbs]
+}
+
+/**Compares limb lengths on each side of the body. Longer limbs on one side of the body incicate
+ * that side is facing the camera. E.g., if a subject's left forearm is longer (on a 2d screen)
+ * than his right, then this indicates his left side is closer to the camera, and is therefore facing it.
+ * More left limbs longer than their right counterparts increase this confidence, while the opposite will
+ * decrease it.
+ */
+export function determineSideFacingCamera(sharedLimbs: Limb[], sharedPoints: GroupedPoints[]): 'left' | 'right' | 'undetermined' {
+  let sideScore = 0 //negative indicates left, positive indicates right
+  sharedLimbs.map(limb => {
+    const joints1 = sharedPoints.find(keypoint => keypoint.part.toLowerCase().includes(limb.joints[0])) //the set of joints (4) that makes up a set of shared limbs (2)
+    const joints2 = sharedPoints.find(keypoint => keypoint.part.toLowerCase().includes(limb.joints[1]))
+
+    const leftLimbLength = distanceBetween(joints1.leftPoint.position, joints2.leftPoint.position)
+    const rightLimbLength = distanceBetween(joints1.rightPoint.position, joints2.rightPoint.position)
+
+    const limbLengthDiff =  leftLimbLength - rightLimbLength
+
+    if (limbLengthDiff > 1) {//if left limb is longer
+      sideScore--
+    } else if (limbLengthDiff < 1) {
+      sideScore++
+    }//do nothing if they're exactly the same length
+  })
+
+  return sideScore > 0 ? 'right'
+    : sideScore < 0 ? 'left'
+    : 'undetermined'
 }
