@@ -245,7 +245,7 @@
  // }
  
 
-
+/**measures distance between two points on a 2d axis */
 export function distanceBetween(point1: Point, point2: Point) {
   const xDiff = Math.abs(point1.x - point2.x)
   const yDiff = Math.abs(point1.y - point2.y)
@@ -256,6 +256,11 @@ export function distanceBetween(point1: Point, point2: Point) {
   return distance
 }
 
+/**Takes posenet keypoints and filters them with a minConfidence input.
+ * For the passing points, separates them into left/right groups,
+ * as well as a group containing points available on both the left and right
+ * side, e.g., contains 'wrist' if both leftWrist and rightWrist passed.
+ */
 export function groupPoints(keypoints: Keypoint[], minConfidence: number): (Keypoint[] | GroupedPoints[])[] {
   const leftPoints = keypoints.filter(point => 
     point.part.includes('left') && point.score >= minConfidence
@@ -283,6 +288,11 @@ export function groupPoints(keypoints: Keypoint[], minConfidence: number): (Keyp
   return [leftPoints, rightPoints, sharedPoints]
 }
 
+/**Takes keypoints and groups them into available limbs. E.g., if left
+ * wrist and left elbow are available, then the left forearm is available.
+ * Also returns 'shared limbs,' as in limbs that are available on both the
+ * left and right side, e.g., forearm if left and right forearms are available.
+ */
 export function groupLimbs(leftPoints: Keypoint[], rightPoints: Keypoint[]): (Limb[] | string[])[] {
   const limbs = [
     {
@@ -341,13 +351,22 @@ export function groupLimbs(leftPoints: Keypoint[], rightPoints: Keypoint[]): (Li
   return [availableLimbs, sharedLimbs]
 }
 
+/**Compares limb lengths on each side of the body. Longer limbs on one side of the body incicate
+ * that side is facing the camera. E.g., if a subject's left forearm is longer (on a 2d screen)
+ * than his right, then this indicates his left side is closer to the camera, and is therefore facing it.
+ * More left limbs longer than their right counterparts increase this confidence, while the opposite will
+ * decrease it.
+ */
 export function determineSideFacingCamera(sharedLimbs: Limb[], sharedPoints: GroupedPoints[]): 'left' | 'right' | 'undetermined' {
   let sideScore = 0 //negative indicates left, positive indicates right
   sharedLimbs.map(limb => {
     const joints1 = sharedPoints.find(keypoint => keypoint.part.toLowerCase().includes(limb.joints[0])) //the set of joints (4) that makes up a set of shared limbs (2)
     const joints2 = sharedPoints.find(keypoint => keypoint.part.toLowerCase().includes(limb.joints[1]))
 
-    const limbLengthDiff = distanceBetween(joints1.leftPoint.position, joints2.leftPoint.position) - distanceBetween(joints1.rightPoint.position, joints2.rightPoint.position)
+    const leftLimbLength = distanceBetween(joints1.leftPoint.position, joints2.leftPoint.position)
+    const rightLimbLength = distanceBetween(joints1.rightPoint.position, joints2.rightPoint.position)
+
+    const limbLengthDiff =  leftLimbLength - rightLimbLength
 
     if (limbLengthDiff > 1) {//if left limb is longer
       sideScore--
